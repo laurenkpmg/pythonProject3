@@ -104,12 +104,12 @@ llm_vars = {}
 async def init():
 
     # Configure the baseline configuration of the OpenAI library for Azure OpenAI Service.
+    openai.api_base = "https://testopenai4.openai.azure.com/"
+    openai.api_key = "19f61bb2a418484dbe809cb720c2527b"
+    openai.api_version = "2023-05-15"
     openai.api_type = "azure"
-    openai.api_base = "https://bank-hapoalim.openai.azure.com/"
-    openai.api_version = "2023-03-15-preview"
-    openai.api_key = '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'
 
-    df = pd.read_excel('C:\\Users\\ltobaly\\PycharmProjects\\pythonProject3\\app\\data\\maccabi_table.xlsx').dropna().drop_duplicates()
+    df = pd.read_excel('data/maccabi_table.xlsx').dropna().drop_duplicates()
     # Removing the number and the last hyphen from the 'SG_TREAT_NAME' column
     treat_names = df['SG_TREAT_NAME'].astype(str)
 
@@ -127,28 +127,33 @@ async def init():
     # char_text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000,
     #                                            chunk_overlap=200, length_function=len)
     # # create embeddings
-    embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)
+    embeddings = OpenAIEmbeddings(openai_api_base = "https://testopenai4.openai.azure.com/",
+                                  openai_api_key = "19f61bb2a418484dbe809cb720c2527b",
+                                  openai_api_version = "2023-05-15",
+                                  openai_api_type = "azure",
+                                  deployment="text-embedding-ada-002")
 
     llm_vars['pdfDocSearch'] = FAISS.from_texts(text_chunks, embeddings)
     #
-    # inquiry = 'בדיקת דם'
+    question = ''
+    documents =[]
     # docs = llm_vars['pdfDocSearch'].similarity_search(inquiry, k=50)
 
     llm = AzureChatOpenAI(temperature=0, max_tokens=800, openai_api_base=openai.api_base,
-                        openai_api_key='5421003d73ec4e858045932440a8bfa7',
-                        openai_api_version=openai.api_version, deployment_name="gpt-4-128k")
+                        openai_api_key=openai.api_key,
+                        openai_api_version=openai.api_version, deployment_name="gpt-4-32k-testing")
 
     prompt_template = 'for each of the following services, decide whether the user query is relevant to it in terms of content.' \
                       'output the service name + yes/no if relevant or not' \
-                      'user query: {inquiry}' \
+                      'user query: {question}' \
                       'categories: {documents}'
     #
-    prompt_template = PromptTemplate(input_variables=["documents", 'inquiry'], template= prompt_template)
+    prompt_template = PromptTemplate(input_variables=["documents", 'question'], template= prompt_template)
     llm_vars['chain'] = load_qa_chain(llm=llm, chain_type="stuff", verbose=True, prompt=prompt_template, document_variable_name='documents')
 
 @app.post("/question")
 def llm_question(req: dict):
-    inquiry = req['prompt']
+    inquiry = req["prompt"]
     docs = llm_vars['pdfDocSearch'].similarity_search(inquiry, k=50)
     res = llm_vars['chain'].run(input_documents=docs, question=inquiry)
     categories = res.split('\n')
