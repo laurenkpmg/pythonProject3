@@ -160,4 +160,6 @@ def llm_question(req: dict):
     categories = [{'cpt':categories[i][:-6]} for i in range(len(categories)) if 'Yes' in categories[i]]
     return categories
 
-
+@app.post("/")
+def check():
+    return "working" 
